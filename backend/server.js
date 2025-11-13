@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/database');
+const path = require('path');
 
 // Conectar a la base de datos
 connectDB();
@@ -12,8 +13,25 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas
+// Configurar CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+});
+
+// Servir archivos estáticos del frontend
+app.use(express.static(path.join(__dirname, '../frontend')));
+
+// Rutas de la API
 app.use('/api/bonos', require('./routes/bonos'));
+app.use('/api/dashboard', require('./routes/dashboard'));
+
+// Ruta para servir el frontend
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
 
 // Ruta de prueba
 app.get('/api/test', (req, res) => {
@@ -25,36 +43,23 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Ruta de salud de la base de datos
-app.get('/api/db-status', async (req, res) => {
-  try {
-    const mongoose = require('mongoose');
-    res.json({
-      database: mongoose.connection.readyState === 1 ? 'Conectada' : 'Desconectada',
-      host: mongoose.connection.host,
-      name: mongoose.connection.name,
-      models: ['Bono']
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Manejo de errores básico
+// Manejo de errores
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Algo salió mal en el servidor' });
 });
 
-// Ruta 404
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Ruta no encontrada' });
+// Ruta 404 para API
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'Ruta API no encontrada' });
+});
+
+// Ruta 404 para frontend
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`📊 Ruta de prueba: http://localhost:${PORT}/api/test`);
-  console.log(`🗄️  Estado BD: http://localhost:${PORT}/api/db-status`);
-  console.log(`💰 Rutas de bonos: http://localhost:${PORT}/api/bonos`);
 });

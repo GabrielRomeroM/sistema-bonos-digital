@@ -5,13 +5,13 @@ function generarHash(data) {
 }
 
 function firmarDocumento(bonoData, clavePrivada) {
+  // Usar datos consistentes
   const datosString = JSON.stringify({
     empleado: bonoData.empleado,
     empresa: bonoData.empresa,
     sueldo: bonoData.sueldo,
     mes: bonoData.mes,
-    anio: bonoData.anio,
-    fecha: new Date().toISOString().split('T')[0]
+    anio: bonoData.anio
   });
   
   const hash = generarHash(datosString + clavePrivada);

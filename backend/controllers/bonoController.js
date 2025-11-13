@@ -20,8 +20,20 @@ const crearBono = async (req, res) => {
       });
     }
 
-    // Generar firma digital
-    const firmaDigital = firmarDocumento(req.body, process.env.CLAVE_PRIVADA_FIRMAS);
+    // Asegurar que siempre tengamos los mismos datos
+    const datosParaFirma = {
+      empleado: req.body.empleado,
+      empresa: req.body.empresa || {
+        nombre: process.env.EMPRESA_NOMBRE || 'Mi Empresa SA',
+        ruc: process.env.EMPRESA_RUC || '12345678901'
+      },
+      sueldo: req.body.sueldo,
+      mes: req.body.mes,
+      anio: req.body.anio || new Date().getFullYear()
+    };
+
+    // Generar firma digital CON LOS MISMOS DATOS
+    const firmaDigital = firmarDocumento(datosParaFirma, process.env.CLAVE_PRIVADA_FIRMAS);
 
     // Generar PDF
     const pdfBuffer = await generarBonoPDF(req.body);
@@ -30,6 +42,7 @@ const crearBono = async (req, res) => {
     // Crear bono en la base de datos
     const bono = new Bono({
       ...req.body,
+      empresa: datosParaFirma.empresa,
       firmaDigital,
       hashDocumento,
       fechaFirma: new Date(),
@@ -71,6 +84,7 @@ const obtenerBonos = async (req, res) => {
       bonos
     });
   } catch (error) {
+    console.error('Error obteniendo bonos:', error);
     res.status(500).json({ error: 'Error obteniendo los bonos' });
   }
 };
@@ -89,6 +103,7 @@ const obtenerBonoPorId = async (req, res) => {
       bono
     });
   } catch (error) {
+    console.error('Error obteniendo bono:', error);
     res.status(500).json({ error: 'Error obteniendo el bono' });
   }
 };
@@ -102,8 +117,17 @@ const verificarFirma = async (req, res) => {
       return res.status(404).json({ error: 'Bono no encontrado' });
     }
 
-    // Recalcular la firma para verificar
-    const firmaVerificada = firmarDocumento(bono.toObject(), process.env.CLAVE_PRIVADA_FIRMAS);
+    // Crear objeto con solo los datos necesarios para la firma
+    const datosParaFirma = {
+      empleado: bono.empleado,
+      empresa: bono.empresa,
+      sueldo: bono.sueldo,
+      mes: bono.mes,
+      anio: bono.anio
+    };
+
+    // Recalcular la firma con datos consistentes
+    const firmaVerificada = firmarDocumento(datosParaFirma, process.env.CLAVE_PRIVADA_FIRMAS);
     const esValido = firmaVerificada === bono.firmaDigital;
 
     res.json({
@@ -115,6 +139,7 @@ const verificarFirma = async (req, res) => {
     });
 
   } catch (error) {
+    console.error('Error verificando la firma:', error);
     res.status(500).json({ error: 'Error verificando la firma' });
   }
 };
